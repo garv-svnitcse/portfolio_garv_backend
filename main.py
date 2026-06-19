@@ -13,7 +13,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",                     # Allows your local React server to test it
+        "https://portfolio-garv-frontend.vercel.app" # Replace with your actual live Vercel domain link
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
