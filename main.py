@@ -55,17 +55,20 @@ Message:
 
         msg.attach(MIMEText(body, "plain"))
 
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-
+        # --- REPLACE YOUR OLD SMTP LINES WITH THIS ---
+        # Connect securely using SSL directly via port 465
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+        
+        # (Remove server.starttls() entirely, it's not needed for SMTP_SSL)
+        
         server.login(
             EMAIL_ADDRESS,
             EMAIL_PASSWORD
         )
 
         server.send_message(msg)
-
         server.quit()
+        # ---------------------------------------------
 
         return {
             "message":
