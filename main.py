@@ -55,17 +55,23 @@ Message:
 
         msg.attach(MIMEText(body, "plain"))
 
-        # --- REPLACE YOUR OLD SMTP LINES WITH THIS ---
-        # Connect securely using SSL directly via port 465
-        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-        
-        # (Remove server.starttls() entirely, it's not needed for SMTP_SSL)
-        
-        server.login(
-            EMAIL_ADDRESS,
-            EMAIL_PASSWORD
-        )
+        # --- REPLACE YOUR OLD SMTP SETUP WITH THIS ---
+        import socket
 
+        # Force smtplib to route strictly over IPv4 (fixes Render's Network is unreachable error)
+        class IPv4SMTP_SSL(smtplib.SMTP_SSL):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            
+            def _get_socket(self, host, port, timeout):
+                self.file = None
+                # Force AF_INET (IPv4) instead of letting it default to IPv6
+                return socket.create_connection((host, port), timeout, source_address=None)
+
+        # Connect securely using our custom IPv4 SSL handler on port 465
+        server = IPv4SMTP_SSL("smtp.gmail.com", 465)
+        
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         server.send_message(msg)
         server.quit()
         # ---------------------------------------------
