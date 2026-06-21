@@ -16,7 +16,7 @@ app.add_middleware(
         "http://localhost:5174",                     # Allows your active React server on port 5174 to test it
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
-        "https://portfolio-garv-frontend.vercel.app" # Replace with your actual live Vercel domain link
+        "https://garv-agarwal2409.vercel.app" # Replace with your actual live Vercel domain link
     ],
     allow_credentials=True,
     allow_methods=["*"],
