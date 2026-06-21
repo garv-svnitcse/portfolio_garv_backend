@@ -2,10 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from dotenv import load_dotenv
-import smtplib
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 
 load_dotenv()
 
@@ -25,8 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 
 
@@ -40,51 +37,35 @@ class ContactForm(BaseModel):
 async def contact(form: ContactForm):
     try:
         # Check if environment variables are configured
-        if not EMAIL_ADDRESS or not EMAIL_PASSWORD or not RECEIVER_EMAIL:
-            raise ValueError("Email configuration is missing from environment variables (.env). Please set EMAIL_ADDRESS, EMAIL_PASSWORD, and RECEIVER_EMAIL.")
+        if not RESEND_API_KEY or not RECEIVER_EMAIL:
+            raise ValueError("Resend API Key or Receiver Email is missing from environment variables (.env). Please set RESEND_API_KEY and RECEIVER_EMAIL.")
         
+        # Send HTTP POST to Resend API
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "from": "Portfolio Contact Form <onboarding@resend.dev>",
+                "to": RECEIVER_EMAIL,
+                "reply_to": form.email,
+                "subject": f"Portfolio Contact From {form.name}",
+                "html": f"""
+                <h3>New Message from Portfolio Contact Form</h3>
+                <p><strong>Name:</strong> {form.name}</p>
+                <p><strong>Email:</strong> {form.email}</p>
+                <p><strong>Message:</strong></p>
+                <p>{form.message}</p>
+                """
+            }
+        )
 
-        msg = MIMEMultipart()
-
-        msg["From"] = EMAIL_ADDRESS
-        msg["To"] = RECEIVER_EMAIL
-        msg["Subject"] = f"Portfolio Contact From {form.name}"
-
-        body = f"""
-New Portfolio Message
-
-Name: {form.name}
-
-Email: {form.email}
-
-Message:
-{form.message}
-"""
-
-        msg.attach(MIMEText(body, "plain"))
-
-        # --- REPLACE YOUR OLD SMTP SETUP WITH THIS ---
-        import socket
-
-        # Force smtplib to route strictly over IPv4 and wrap securely in SSL (fixes Render's Network is unreachable error)
-        class IPv4SMTP_SSL(smtplib.SMTP_SSL):
-            def _get_socket(self, host, port, timeout):
-                self.file = None
-                # Resolve hostname explicitly to IPv4 addresses to bypass Render's IPv6 limits
-                res = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-                ip = res[0][4][0]
-                new_socket = socket.create_connection((ip, port), timeout, self.source_address)
-                # Wrap the socket securely in the SSL context (safely fallback to 'host' if 'keyfile' is not present in Python 3.12+)
-                server_hostname = getattr(self, 'server_hostname', None) or getattr(self, 'keyfile', None) or host
-                return self.context.wrap_socket(new_socket, server_hostname=server_hostname)
-
-        # Connect securely using our custom IPv4 SSL handler on port 465
-        server = IPv4SMTP_SSL("smtp.gmail.com", 465)
+        res_data = response.json()
         
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        # ---------------------------------------------
+        if response.status_code != 200:
+            raise Exception(res_data.get("message", "Failed to send email via Resend API."))
 
         return {
             "message": "Message sent successfully!"
