@@ -39,6 +39,11 @@ class ContactForm(BaseModel):
 @app.post("/contact")
 async def contact(form: ContactForm):
     try:
+        # Check if environment variables are configured
+        if not EMAIL_ADDRESS or not EMAIL_PASSWORD or not RECEIVER_EMAIL:
+            raise ValueError("Email configuration is missing from environment variables (.env). Please set EMAIL_ADDRESS, EMAIL_PASSWORD, and RECEIVER_EMAIL.")
+        
+
         msg = MIMEMultipart()
 
         msg["From"] = EMAIL_ADDRESS
@@ -69,8 +74,9 @@ Message:
                 res = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
                 ip = res[0][4][0]
                 new_socket = socket.create_connection((ip, port), timeout, self.source_address)
-                # Wrap the socket securely in the SSL context
-                return self.context.wrap_socket(new_socket, server_hostname=self.keyfile or host)
+                # Wrap the socket securely in the SSL context (safely fallback to 'host' if 'keyfile' is not present in Python 3.12+)
+                server_hostname = getattr(self, 'server_hostname', None) or getattr(self, 'keyfile', None) or host
+                return self.context.wrap_socket(new_socket, server_hostname=server_hostname)
 
         # Connect securely using our custom IPv4 SSL handler on port 465
         server = IPv4SMTP_SSL("smtp.gmail.com", 465)
@@ -81,14 +87,14 @@ Message:
         # ---------------------------------------------
 
         return {
-            "message":
-            "Message sent successfully!"
+            "message": "Message sent successfully!"
         }
 
     except Exception as e:
-        print(e)
+        import traceback
+        traceback.print_exc()
 
         return {
-            "message":
-            "Failed to send message."
+            "message": "Failed to send message.",
+            "error": str(e)
         }
