@@ -15,6 +15,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",                     # Allows your local React server to test it
+        "http://localhost:5174",                     # Allows your active React server on port 5174 to test it
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
         "https://garv-agarwal.vercel.app" # Replace with your actual live Vercel domain link
     ],
     allow_credentials=True,
