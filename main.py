@@ -61,15 +61,16 @@ Message:
         # --- REPLACE YOUR OLD SMTP SETUP WITH THIS ---
         import socket
 
-        # Force smtplib to route strictly over IPv4 (fixes Render's Network is unreachable error)
+        # Force smtplib to route strictly over IPv4 and wrap securely in SSL (fixes Render's Network is unreachable error)
         class IPv4SMTP_SSL(smtplib.SMTP_SSL):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-            
             def _get_socket(self, host, port, timeout):
                 self.file = None
-                # Force AF_INET (IPv4) instead of letting it default to IPv6
-                return socket.create_connection((host, port), timeout, source_address=None)
+                # Resolve hostname explicitly to IPv4 addresses to bypass Render's IPv6 limits
+                res = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+                ip = res[0][4][0]
+                new_socket = socket.create_connection((ip, port), timeout, self.source_address)
+                # Wrap the socket securely in the SSL context
+                return self.context.wrap_socket(new_socket, server_hostname=self.keyfile or host)
 
         # Connect securely using our custom IPv4 SSL handler on port 465
         server = IPv4SMTP_SSL("smtp.gmail.com", 465)
